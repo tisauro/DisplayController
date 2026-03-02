@@ -3,15 +3,72 @@
 - Display LCD1602 RGB Module
 - No 2 push buttons
 
-### Project scope:
-This project implments the logic to display text on LCD1602 RGB Module.
-the buttons are used to implement automatic scrolling of the text which can be split in two or more lines.
-The functinality also includes a display timeout to simulate the display going off aftera certain time.
-A translator module to translate the text to any laguage is also implemented.
-Button events are forwarded to the main controll logic if the is no need to scroll the text. 
-The logic is enterely implemented using Python Asycio.
-Different simulators are also implemented to test the logic.
-they are plug and play modules that can be compsed in different ways to test the logic.
+
+```ascii art:
+
+┌─────────────────────┐
+│                     │
+│      Buttons        │
+│                     │
+└──────────┬──────────┘
+           │
+           │ button events
+           │
+           ▼
+┌─────────────────────────────────────────┐          ┌─────────────────┐
+│                                         │          │                 │
+│       Display Controller                │─────────▶│  Real Display   │
+│                                         │          │   (LCD1602)     │
+│  ┌───────────────────────────────────┐  │          │                 │
+│  │  Filter Button Events:            │  │          └─────────────────┘
+│  │  • Scroll text                    │  │
+│  │  • Wake up display                │  │
+│  └───────────────────────────────────┘  │
+│                                         │
+└────────┬─────────────────────▲──────────┘
+         │                     │
+         │ filtered            │ translated text
+         │ button events       │
+         │                     │
+         │                ┌────┴──────────────────┐
+         │                │                       │
+         │                │   Language Module     │
+         │                │                       │
+         │                │  ┌─────────────────┐  │
+         │                │  │  Translate text │  │
+         │                │  │  codes based on:│  │
+         │                │  │  • Selected     │  │
+         │                │  │    language     │  │
+         │                │  └─────────────────┘  │
+         │                │                       │
+         │                └───────────▲───────────┘
+         │                            │
+         │                            │ text codes
+         │                            │
+         ▼                            │
+┌─────────────────────────────────────┴───┐
+│                                         │
+│        Main Controller                  │
+│                                         │
+└─────────────────────────────────────────┘
+
+```
+
+
+
+
+### Project Scope:
+This project implements control logic for an LCD1602 RGB display module using Python asyncio.
+
+**Key Features:**
+- **Automatic text scrolling**: Handles multi-line text display with button-controlled scrolling
+- **Display timeout**: Automatically turns off the display after a period of inactivity
+- **Multi-language support**: Translates text codes into any configured language
+- **Event filtering**: Button events are intelligently filtered—handled locally for scrolling/wake operations or forwarded to the main controller when not needed for display control
+- **Modular simulators**: Plug-and-play test modules that can be composed in various configurations to test the logic
+
+**Architecture:**
+The Display Controller acts as a mediator between buttons and the main controller. It receives button events from physical buttons and text events from the main controller. Button events are filtered to control text scrolling or wake the display; otherwise, they are forwarded to the main controller for application logic handling.
 
 
 ### TTL terminal for Raspberry Pi
