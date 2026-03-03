@@ -19,7 +19,9 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Topic :: System :: Hardware",
 ]
-dependencies = []
+dependencies = [
+    "smbus2==0.6.0"
+]
 
 [project.optional-dependencies]
 dev = [
@@ -33,7 +35,7 @@ Homepage = "https://github.com/tisauro/DisplayController"
 Repository = "https://github.com/tisauro/DisplayController"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -41,3 +43,4 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+pythonpath = [".", "src"]
