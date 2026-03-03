@@ -3,6 +3,17 @@
 - Display LCD1602 RGB Module
 - No 2 push buttons
 
+### Dev Tools
+
+A very minimal set of dev tools have been configured, such as `pre-commit` hooks with `ruff` for linting. You can install the pre-commit hooks by running:
+
+```bash
+pip install -e ".[dev]"
+pre-commit install
+```
+
+Then whenever you make a commit, `ruff` will automatically check your code for linting issues.
+
 
 ```ascii art:
 

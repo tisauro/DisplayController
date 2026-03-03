@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "display-controller"
+version = "0.1.0"
+description = "Control logic for LCD1602 RGB display module with button input handling"
+readme = "ReadMe.md"
+requires-python = ">=3.12"
+authors = [
+    { name = "Tisauro", email = "tisauro@gmail.com" }
+]
+keywords = ["raspberry-pi", "lcd1602", "display-controller", "asyncio"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: System :: Hardware",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21.0",
+    "pre-commit",
+]
+
+[project.urls]
+Homepage = "https://github.com/tisauro/DisplayController"
+Repository = "https://github.com/tisauro/DisplayController"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
