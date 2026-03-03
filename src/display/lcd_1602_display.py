@@ -130,7 +130,7 @@ class LCD1602Display(BaseDisplay):
         self._command(LCD_DISPLAYCONTROL | self._showcontrol)
         self.set_color_white()
 
-    def begin(self, cols, lines):
+    def init_display(self, cols, lines):
         try:
             self._smbus = SMBus(1)
         except Exception as e:
@@ -209,7 +209,7 @@ class LCD1602Display(BaseDisplay):
         return self._is_rgb
 
     async def __aenter__(self):
-        self.begin(self._row, self._col)
+        self.init_display(self._row, self._col)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -241,6 +241,7 @@ if __name__ == "__main__":
     # from modules.utils.display import display_test
 
     lcd = LCD1602Display()
+    lcd.init_display()
     lcd.display_clear()
     lcd.print_lines('tes"\\"t_1', "test_2")
     lcd.display_clear()

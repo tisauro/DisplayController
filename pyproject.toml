@@ -20,7 +20,8 @@ classifiers = [
     "Topic :: System :: Hardware",
 ]
 dependencies = [
-    "smbus2==0.6.0"
+    "smbus2==0.6.0",
+    "ruff"
 ]
 
 [project.optional-dependencies]

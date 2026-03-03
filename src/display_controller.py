@@ -66,7 +66,7 @@ class DisplayController:
             return
 
         if "background_color" in message:
-            log.debug(f'Setting background colour to {message["background_color"]}')
+            log.debug(f"Setting background colour to {message['background_color']}")
             self._display_queue.put_nowait(message)
         if "background_colour_white" in message:
             log.debug("Setting background colour white")
