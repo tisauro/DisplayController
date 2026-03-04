@@ -1,129 +1,131 @@
 import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Literal, AsyncGenerator
+from typing import Literal, AsyncGenerator, Any
 
 log = logging.getLogger(__name__)
 
 
 class DisplayController:
-    """ """
+    """
+    Manages the interaction with the display hardware, including managing display
+    timeouts, text display, and background color settings.
 
-    def __init__(self, languages: str = ""):
-        self.lines = []
-        self.cursor_position = 0
+    The `DisplayController` class provides functionality to control a display
+    screen, handle text message updates, and manage user interactions through
+    physical buttons. It aims to provide robust control mechanisms, including
+    handling screen timeouts and ensuring efficient display updates.
 
-        self._display_queue = asyncio.Queue()
+    :ivar lines: List of text lines currently displayed on the screen.
+    :type lines: list
+    :ivar cursor_position: Index representing the current display position
+        when scrolling through text.
+    :type cursor_position: int
+    """
+
+    def __init__(self):
+        self._lines = []
+        self._cursor_position = 0
 
         # Display timeout
-        self.start_timer_tick = datetime.now(UTC).timestamp()
-        self.display_off = False
+        self._start_timer_tick = datetime.now(UTC).timestamp()
+        self._display_off = False
         self._disable_screen_timeout = False
         self._timeout_minutes = 2
-        self._last_payload = {"text": "Initialized"}
+        self._last_payload = {"text": ["Display", "Initialized"]}
+        self._last_background_colour = None
+        self._task_display_timeout: asyncio.Task | None = None
+        self._display_queue: asyncio.Queue | None = None
 
-        # self._timer = Thread(target=self._switch_display)
-        # if self._screen.has_timeout():
-        #     self._timer.start()
-        self._task_display = asyncio.create_task(self._switch_display())
+    async def __aenter__(self):
+        self.init_display_controller()
+        return self
 
-        # self._init_display()
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        self._task_display_timeout.cancel()
 
-    def _init_display(self):
+    def init_display_controller(self):
+        self._display_queue = asyncio.Queue()
+        self._task_display_timeout = asyncio.create_task(self._switch_display())
         self._show_text(self._last_payload, force_update=True)
+
+    async def send_message_to_display(self) -> AsyncGenerator:
+        while True:
+            message = await self._display_queue.get()
+            await asyncio.sleep(0.1)
+            yield message
 
     async def _switch_display(self):
         while True:
             if (
-                self.start_timer_tick
+                self._start_timer_tick
                 + timedelta(minutes=self._timeout_minutes).total_seconds()
                 < datetime.now(UTC).timestamp()
-                and not self.display_off
+                and not self._display_off
                 and not self._disable_screen_timeout
             ):
                 log.debug("Display Off")
                 message = {"settings": "display_off"}
-                self._display_queue.put_nowait(message)
-                self.display_off = True
+                self._process_event(message)
+                self._display_off = True
             await asyncio.sleep(3)
 
     def _set_settings(self, message):
-        if "disable_screen_timeout" in message:
-            self._disable_screen_timeout = message["settings"]["disable_screen_timeout"]
-            log.debug(
-                f"Setting disable_screen_timeout to {self._disable_screen_timeout}"
-            )
+        self._disable_screen_timeout = message["settings"].get(
+            "disable_screen_timeout", False
+        )
+        log.debug(f"Setting disable_screen_timeout to {self._disable_screen_timeout}")
 
     def _set_background_colour(self, message):
-        # don't change background if display is off
-        if self.display_off:
-            return
+        """
+        Sets the background color based on the provided message. The background color will not change if the display
+        is turned off or if the background color remains the same as the last applied color.
 
+        :param message: A dictionary containing the background color information. It can include a key
+            "background_colour" with either a list representing RGB values, or a string value such as "white".
+        :type message: dict
+        :return: None
+        """
+        bg_colour = message.get("background_colour", [])
+
+        # don't change background if display is off or
         # Avoid flickering if the background color is the same
-        if self._last_payload.get("background_colour", []) == message.get(
-            "background_colour", []
-        ):
+        if self._display_off or self._last_background_colour == bg_colour:
             return
 
-        if "background_color" in message:
-            log.debug(f"Setting background colour to {message['background_color']}")
-            self._display_queue.put_nowait(message)
-        if "background_colour_white" in message:
+        msg = {"background_colour": tuple()}
+        if isinstance(bg_colour, list):
+            log.debug(f"Setting background colour to {message['background_colour']}")
+            msg = {"background_colour": tuple(bg_colour)}
+        elif isinstance(bg_colour, str):
             log.debug("Setting background colour white")
-            message["background_color"] = [255, 255, 255]
-            self._display_queue.put_nowait(message)
+            if bg_colour == "white":
+                msg = {"background_colour": (255, 255, 255)}
+            elif bg_colour == "red":
+                msg = {"background_colour": (255, 0, 0)}
+            elif bg_colour == "green":
+                msg = {"background_colour": (0, 255, 0)}
+            elif bg_colour == "blue":
+                msg = {"background_colour": (0, 0, 255)}
+            else:
+                log.error(f"Invalid background colour: {bg_colour}")
+                return
+        self._last_background_colour = bg_colour
+        self._display_queue.put_nowait(msg)
 
     def _show_text(self, payload, force_update: bool = False) -> None:
-        new_message = False
-
-        if not force_update and (
-            ("text" in self._last_payload and "text" in payload)
-            and (self._last_payload["text"] == payload.get("text", []))
-        ):
-            return
-
-        if not force_update and (
-            ("code_language" in self._last_payload and "code_language" in payload)
-            and (self._last_payload["code_language"] == payload["code_language"])
-            and ("parameters" in self._last_payload and "parameters" in payload)
-            and self._last_payload["parameters"] == payload["parameters"]
-        ):
-            return
-
-        if "code_language" in payload:
+        if force_update or payload != self._last_payload:
             self._last_payload = payload
-            self.lines = self._languages.get_text(
-                payload["code_language"], payload.get("parameters", [])
-            )
-            new_message = True
-
-        if "text" in payload:
-            self._last_payload = payload
-            new_message = True
-            text = payload["text"]
-            if isinstance(text, str):
-                text = [text]
-            self.lines = text
-
-        if not self.display_off:
-            # don't write on display if it is off
-            if new_message and len(self.lines) == 1:
-                log.debug(
-                    f"Received message: {self._last_payload}, no lines: {len(self.lines)}"
+            text_lines = payload["text"]
+            if isinstance(text_lines, list):
+                self._cursor_position = 0
+                send_lines = tuple(
+                    text_lines[self._cursor_position : self._cursor_position + 2]
                 )
-                with self._lock:
-                    self._screen.display_clear()
-                    self._screen.print_lines(self.lines[0], "")
-            elif new_message and len(self.lines) > 1:
-                log.debug(
-                    f"Received message: {self._last_payload}, no lines: {len(self.lines)}"
-                )
-                with self._lock:
-                    self.cursor_position = 0
-                    self._screen.display_clear()
-                    self._screen.print_lines(self.lines[0], self.lines[1])
+                self._display_queue.put_nowait({"text": send_lines})
+                self._lines = text_lines
 
-    def _process_event(self, message: dict):
+    def _process_event(self, message: dict[str, Any]):
         try:
             if "background_color" in message:
                 self._set_background_colour(message)
@@ -151,70 +153,75 @@ class DisplayController:
     async def listen_direction(self, buttons: AsyncGenerator):
         try:
             async for direction in buttons:
-                self.push_direction(direction)
+                msg = self.push_direction(direction)
+                if msg:
+                    yield msg
         except Exception as e:
             log.info(f"Error processing event: {e}")
 
+    def _update_display_text(self) -> None:
+        """Updates the display with current lines at cursor position."""
+        msg = {
+            "text": (
+                self._lines[self._cursor_position],
+                self._lines[self._cursor_position + 1],
+            )
+        }
+        self._display_queue.put_nowait(msg)
+
+    def _handle_next_button(self) -> bool:
+        """Handle next button press. Returns True if display was updated."""
+        if self._cursor_position + 3 == len(self._lines):
+            self._cursor_position += 1
+            self._update_display_text()
+            return True
+        elif self._cursor_position + 3 < len(self._lines):
+            self._cursor_position += 2
+            self._update_display_text()
+            return True
+        return False
+
+    def _handle_prev_button(self) -> bool:
+        """Handle previous button press. Returns True if display was updated."""
+        if self._cursor_position - 1 == 0:
+            self._cursor_position = 0
+            self._update_display_text()
+            return True
+        elif self._cursor_position - 2 >= 0:
+            self._cursor_position -= 2
+            self._update_display_text()
+            return True
+        return False
+
     def push_direction(
-        self, button: Literal["Next", "Prev", "Double"], held: bool = False
-    ) -> AsyncGenerator:
-        # avoid moving the state if the display is off
-        # use the first press of the button to wake up the display
-        # if self.display_off:
-        #     self.start_timer_tick = datetime.now(UTC).timestamp()
-        #     with self._lock:
-        #         self._screen.display_on()
-        #     self.display_off = False
-        #     self._init_display()
-        #
-        # else:
-        #     self.start_timer_tick = datetime.now(UTC).timestamp()
-        print(button, held)
-        pass
-        # Todo: improve code in here: perhaps spit this in several functions
-        # We use push of the buttons to move the text up and down the screen
-        try:
-            # scroll test in display before sending message to the topic
-            if button == "Next" and not held:
-                # we want this to work with odd and even number of lines
-                if self.cursor_position + 3 == len(self.lines):
-                    self.cursor_position += 1
-                    with self._lock:
-                        self._screen.display_clear()
-                        self._screen.print_lines(
-                            self.lines[self.cursor_position],
-                            self.lines[self.cursor_position + 1],
-                        )
-                elif self.cursor_position + 3 < len(self.lines):
-                    self.cursor_position += 2
-                    with self._lock:
-                        self._screen.display_clear()
-                        self._screen.print_lines(
-                            self.lines[self.cursor_position],
-                            self.lines[self.cursor_position + 1],
-                        )
+        self,
+        button: Literal["button_01", "button_02", "double_button"],
+        held: bool = False,
+    ) -> dict[str, Any] | None:
+        """
+        Process button press and scroll display or wake it up if off.
 
-            elif button == "Prev" and not held:
-                # we want this to work with odd and even number of lines
-                if self.cursor_position - 1 == 0:
-                    self.cursor_position = 0
-                    with self._lock:
-                        self._screen.display_clear()
-                        self._screen.print_lines(
-                            self.lines[self.cursor_position],
-                            self.lines[self.cursor_position + 1],
-                        )
-                elif self.cursor_position - 2 >= 0:
-                    self.cursor_position -= 2
-                    with self._lock:
-                        self._screen.display_clear()
-                        self._screen.print_lines(
-                            self.lines[self.cursor_position],
-                            self.lines[self.cursor_position + 1],
-                        )
-        except Exception as e:
-            log.error(f"Error processing event: {e}")
+        Returns message to send to topic, or None if handled internally.
+        """
+        # Reset timer on any button press
+        self._start_timer_tick = datetime.now(UTC).timestamp()
 
-        # if none of the above send message to topic
-        msg = {"button": button, "held": held}
-        yield msg
+        # Wake up display if off
+        if self._display_off:
+            msg = {"settings": "display_on"}
+            self._display_queue.put_nowait(msg)
+            self._display_off = False
+            return None
+
+        # Scroll display on button press (if not held)
+        if not held:
+            try:
+                if button == "button_01" and self._handle_next_button():
+                    return None
+                elif button == "button_02" and self._handle_prev_button():
+                    return None
+            except Exception as e:
+                log.error(f"Error processing button event: {e}")
+
+        # Send message to topic if not handled above
+        return {"button": button, "held": held}

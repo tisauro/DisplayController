@@ -1,24 +1,25 @@
 import asyncio
 from pathlib import Path
 
-from src.language.translator import Translator
-from src.buttons.async_pi_buttons import AsyncPiButtons
-from src.display_controller import DisplayController
-from src.utils.messages import dispatch_messages
+from languages.translator import Translator
+from buttons.async_pi_buttons import AsyncPiButtons
+from display_controller import DisplayController
+from utils.messages import messages_template
+from utils.dummy_main_controller import DummyMainController
 
 
 async def main():
-    async with AsyncPiButtons() as pi_buttons:
-        print(pi_buttons)
-        # screen_buttons = DisplayController()
+    async with (
+        AsyncPiButtons() as pi_buttons,
+        Translator(files_path=Path("..")) as translator,
+        DummyMainController(messages_template) as dummy_controller,
+    ):
+        display_controller = DisplayController()
 
-        languages = Translator()
-        languages.load_languages(files_path=Path(".."))
-        languages.verify_templates()
-        languages.set_current_language("english")
+        translator.translate(dummy_controller.send_message())
+        dummy_controller.run(display_controller.push_direction)
 
-        display = DisplayController()
-        await display.run(languages.translate(dispatch_messages()), pi_buttons)
+        await display_controller.run(pi_buttons.listen_direction)
 
 
 # Press the green button in the gutter to run the script.
