@@ -13,7 +13,7 @@ async def main():
         # screen_buttons = DisplayController()
 
         languages = Translator()
-        languages.load_languages(path=Path(".."))
+        languages.load_languages(files_path=Path(".."))
         languages.verify_templates()
         languages.set_current_language("english")
 
