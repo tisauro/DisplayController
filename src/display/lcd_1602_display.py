@@ -72,8 +72,6 @@ class LCD1602Display(BaseDisplay):
         self._show_function = LCD_4BITMODE | LCD_1LINE | LCD_5x8DOTS
         self._is_rgb = True
 
-        # self.begin(self._row, self._col)
-
     def __setitem__(self, line, string):
         if not 0 <= line <= 1:
             raise IndexError("line number out of range")
@@ -130,7 +128,7 @@ class LCD1602Display(BaseDisplay):
         self._command(LCD_DISPLAYCONTROL | self._showcontrol)
         self.set_color_white()
 
-    def init_display(self, cols, lines):
+    def _init_display(self, cols, lines):
         try:
             self._smbus = SMBus(1)
         except Exception as e:
@@ -209,7 +207,7 @@ class LCD1602Display(BaseDisplay):
         return self._is_rgb
 
     async def __aenter__(self):
-        self.init_display(self._row, self._col)
+        self._init_display(self._row, self._col)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -218,7 +216,7 @@ class LCD1602Display(BaseDisplay):
 
     async def receive_messages(self, messages: AsyncGenerator):
         async for message in messages:
-            print(f"LCD Display Received message: {message}")
+            log.debug(f"LCD Display Received message: {message}")
             if "text" in message:
                 line1, line2, *_ = (*message.get("text", ()), "", "")
                 self.print_lines(line1, line2)
@@ -236,17 +234,3 @@ class LCD1602Display(BaseDisplay):
                 self.set_rgb(r, g, b)
             else:
                 log.debug(f"No message found for {message}")
-
-
-if __name__ == "__main__":
-    # from modules.utils.display import display_test
-
-    lcd = LCD1602Display()
-    lcd.init_display()
-    lcd.display_clear()
-    lcd.print_lines('tes"\\"t_1', "test_2")
-    lcd.display_clear()
-    lcd.print_line("again", 1)
-    # for line1, line2 in display_test():
-    #     lcd.print_lines(line1, line2)
-    pass

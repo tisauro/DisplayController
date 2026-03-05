@@ -1,6 +1,11 @@
+import json
 from pathlib import Path
 from string import Template
 from typing import AsyncGenerator
+import asyncio
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class Translator:
@@ -30,15 +35,13 @@ class Translator:
             self._language_path = files_path
         else:
             files_path = self._language_path
-        for file_path in files_path.glob("**/language_*.py"):
+        for file_path in files_path.glob("**/language_*.json"):
             language_name = file_path.stem.split("_")[-1:][0]
-            attr = f"_{language_name}_str"
-            file_vars = {}
-            with open(file_path, "r", encoding="utf-8") as f:
-                exec(f.read(), {}, file_vars)
 
-            if attr in file_vars:
-                self._languages[language_name] = file_vars[attr]
+            with open(file_path, "r", encoding="utf-8") as f:
+                json_data = json.load(f)
+
+            self._languages[language_name] = json_data
 
         self.verify_templates()
 
@@ -87,9 +90,9 @@ class Translator:
         return final_text
 
     async def translate(self, messages: AsyncGenerator):
-        while True:
-            try:
-                async for message in messages:
+        try:
+            async for message in messages:
+                try:
                     if "code_language" in message:
                         yield {
                             "text": self.get_text(
@@ -98,8 +101,18 @@ class Translator:
                         }
                     else:
                         yield message
-            except Exception as e:
-                print("Translator Error: ", e, "")
+                except Exception as e:
+                    # Log per-message errors but continue processing
+                    log.error(f"Error translating message {message}: {e}")
+
+        except asyncio.CancelledError:
+            # Allow clean cancellation
+            log.info("Translation cancelled")
+            raise
+        except Exception as e:
+            # Fatal error - log and re-raise
+            log.exception(f"Fatal translator error: {e}")
+            raise
 
 
 if __name__ == "__main__":

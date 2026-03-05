@@ -6,6 +6,9 @@ from typing import Literal, AsyncGenerator, Any
 
 log = logging.getLogger(__name__)
 
+TIMEOUT_MINUTES = 2
+IDLE_TIME = 3
+
 
 @dataclass
 class ButtonEvent:
@@ -38,25 +41,27 @@ class DisplayController:
         self._start_timer_tick = datetime.now(UTC).timestamp()
         self._display_off = False
         self._disable_screen_timeout = False
-        self._timeout_minutes = 2
+        self._timeout_minutes = TIMEOUT_MINUTES
         self._last_payload = {"text": ["Display", "Initialized"]}
         self._last_background_colour = None
-        self._task_display_timeout: asyncio.Task | None = None
-        self._display_queue: asyncio.Queue | None = None
-        self._direction_queue: asyncio.Queue | None = None
+        self._task_display_timeout: asyncio.Task
+        self._display_queue: asyncio.Queue
+        self._direction_queue: asyncio.Queue
 
     async def __aenter__(self):
-        self.init_display_controller()
-        return self
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        self._task_display_timeout.cancel()
-
-    def init_display_controller(self):
         self._display_queue = asyncio.Queue()
         self._direction_queue = asyncio.Queue()
         self._task_display_timeout = asyncio.create_task(self._switch_display())
         self._show_text(self._last_payload, force_update=True)
+        return self
+
+    async def __aexit__(self, _exc_type, _exc_value, _traceback):
+        if self._task_display_timeout and not self._task_display_timeout.done():
+            self._task_display_timeout.cancel()
+            try:
+                await self._task_display_timeout
+            except asyncio.CancelledError:
+                pass
 
     async def send_message_to_display(self) -> AsyncGenerator:
         while True:
@@ -83,7 +88,7 @@ class DisplayController:
                 message = {"settings": "display_off"}
                 self._process_event(message)
                 self._display_off = True
-            await asyncio.sleep(3)
+            await asyncio.sleep(IDLE_TIME)
 
     def _set_settings(self, message):
         self._disable_screen_timeout = message["settings"].get(
@@ -153,11 +158,6 @@ class DisplayController:
         except Exception as e:
             log.error(f"Error processing event: {e}")
 
-    # async def run(self, messages: AsyncGenerator, pi_buttons: AsyncGenerator):
-    #     await asyncio.gather(
-    #         self.listen_messages(messages), self.listen_direction(pi_buttons)
-    #     )
-
     async def listen_messages(self, messages: AsyncGenerator):
         try:
             async for message in messages:
@@ -169,8 +169,8 @@ class DisplayController:
         try:
             async for direction in buttons:
                 msg = self.push_direction(direction)
-                if msg:
-                    print(f"Sending message: {msg}")
+                if msg != {}:
+                    log.debug(f"Sending message: {msg}")
                     event = msg.get("button", "unknown")
                     _id = event.split("_")[1] if "_" in event else None
                     if msg.get("held"):
@@ -191,8 +191,8 @@ class DisplayController:
         }
         self._display_queue.put_nowait(msg)
 
-    def _handle_next_button(self) -> bool:
-        """Handle next button press. Returns True if display was updated."""
+    def _handle_forward_direction(self) -> bool:
+        """Handle forward direction. Returns True if display was updated."""
         if self._cursor_position + 3 == len(self._lines):
             self._cursor_position += 1
             self._update_display_text()
@@ -203,7 +203,7 @@ class DisplayController:
             return True
         return False
 
-    def _handle_prev_button(self) -> bool:
+    def _handle_backward_direction(self) -> bool:
         """Handle previous button press. Returns True if display was updated."""
         if self._cursor_position - 1 == 0:
             self._cursor_position = 0
@@ -219,13 +219,13 @@ class DisplayController:
         self,
         button: Literal["button_01", "button_02", "double_button"],
         held: bool = False,
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, Any]:
         """
         Process button press and scroll display or wake it up if off.
 
         Returns message to send to topic, or None if handled internally.
         """
-        # Reset timer on any button press
+        # Reset the timer on any button press
         self._start_timer_tick = datetime.now(UTC).timestamp()
 
         # Wake up display if off
@@ -233,15 +233,15 @@ class DisplayController:
             msg = {"settings": "display_on"}
             self._display_queue.put_nowait(msg)
             self._display_off = False
-            return None
+            return {}
 
         # Scroll display on button press (if not held)
         if not held:
             try:
-                if button == "button_01" and self._handle_next_button():
-                    return None
-                elif button == "button_02" and self._handle_prev_button():
-                    return None
+                if button == "button_01" and self._handle_forward_direction():
+                    return {}
+                elif button == "button_02" and self._handle_backward_direction():
+                    return {}
             except Exception as e:
                 log.error(f"Error processing button event: {e}")
 

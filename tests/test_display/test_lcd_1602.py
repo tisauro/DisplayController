@@ -1,6 +1,6 @@
 import pytest
 from display.lcd_1602_display import LCD1602Display
-from unittest.mock import patch, Mock, call
+from unittest.mock import patch, Mock, call, MagicMock
 
 
 @patch("display.lcd_1602_display.SMBus")
@@ -30,20 +30,20 @@ async def test_print_lines(smbus_mock):
 
 @patch("display.lcd_1602_display.SMBus")
 @pytest.mark.asyncio
-async def test_receive_settiings(smbus_mock):
+async def test_receive_settings(smbus_mock):
     async def mock_settings():
         yield {"settings": "clear"}
         yield {"settings": "on"}
         yield {"settings": "off"}
 
     async with LCD1602Display() as display:
-        display.display_clear = Mock()
-        display.display_on = Mock()
-        display._display_off = Mock()
+        display.display_clear = MagicMock()
+        display.display_on = MagicMock()
+        display.display_off = MagicMock()
         await display.receive_messages(mock_settings())
         display.display_clear.assert_called_once()
         display.display_on.assert_called_once()
-        display._display_off.assert_called_once()
+        display.display_off.assert_called_once()
 
 
 @patch("display.lcd_1602_display.SMBus")

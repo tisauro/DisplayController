@@ -27,7 +27,7 @@ async def test_translate_not_code_language():
         pytest.param(
             "test_code_with_no_parameters",
             [],
-            {"text": ["Test Line 1", "Test Line2"]},
+            {"text": ["Test Line 1", "Test Line 2"]},
             id="text_code_no_parameters",
         ),
         pytest.param(
@@ -37,7 +37,7 @@ async def test_translate_not_code_language():
                 "param_2=parameter_2",
                 "param_3=parameter_3",
             ],
-            {"text": ["Test Line 1", "Test Line2"]},
+            {"text": ["Test Line 1", "Test Line 2"]},
             id="text_code_no_parameters_sending_parameters",
         ),
         pytest.param(

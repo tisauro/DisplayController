@@ -37,7 +37,7 @@ async def test_aenter_aexit():
 async def test_display_timeout_task(
     mock_datetime, display_off, disable_screen_timeout, should_call
 ):
-    # Mock datetime to return initial time, then time after timeout period
+    # Mock datetime to return initial time, then time after a timeout period
     mock_now = MagicMock()
     mock_now.timestamp.side_effect = [
         1000.0,
@@ -78,7 +78,7 @@ async def test_push_direction_wake_screen():
         controller._display_off = True
         with patch.object(controller._display_queue, "put_nowait") as mock_put:
             ret = controller.push_direction(button="button_01", held=False)
-            assert ret is None
+            assert ret == {}
             msg = {"settings": "display_on"}
             mock_put.assert_called_once_with(msg)
 
@@ -161,13 +161,13 @@ async def test_push_direction_scroll_forward(button, lines, expected_calls):
             # Scroll until we can't scroll anymore
             for i in range(expected_calls):
                 ret = controller.push_direction(button=button, held=False)
-                assert ret is None
+                assert ret == {}
 
-            # Next scroll should return button message (can't scroll further)
+            # The next scroll should return a button message (can't scroll further)
             ret = controller.push_direction(button=button, held=False)
             assert ret == {"button": button, "held": False}
 
-            # Verify final call showed last two lines
+            # Verify final call showed the last two lines
             final_msg = {"text": (lines[-2], lines[-1])}
             assert mock_put.call_count == expected_calls
             if expected_calls > 0:
@@ -213,14 +213,14 @@ async def test_push_direction_scroll_backwards(button, lines, expected_calls):
             # Scroll until we can't scroll anymore
             for i in range(expected_calls):
                 ret = controller.push_direction(button=button, held=False)
-                assert ret is None
+                assert ret == {}
 
-            # Next scroll should return button message (can't scroll further)
+            # The next scroll should return a button message (can't scroll further)
             ret = controller.push_direction(button=button, held=False)
             assert ret == {"button": button, "held": False}
 
-            # Verify final call showed last two lines
-            final_msg = {"text": (lines[-2], lines[-1])}
+            # Verify final call showed the first two lines
+            final_msg = {"text": (lines[0], lines[1])}
             assert mock_put.call_count == expected_calls
             if expected_calls > 0:
                 assert mock_put.call_args[0][0] == final_msg
