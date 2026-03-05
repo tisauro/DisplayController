@@ -87,15 +87,19 @@ class Translator:
         return final_text
 
     async def translate(self, messages: AsyncGenerator):
-        async for message in messages:
-            if "code_language" in message:
-                yield {
-                    "text": self.get_text(
-                        message["code_language"], message.get("parameters", "")
-                    )
-                }
-            else:
-                yield message
+        while True:
+            try:
+                async for message in messages:
+                    if "code_language" in message:
+                        yield {
+                            "text": self.get_text(
+                                message["code_language"], message.get("parameters", "")
+                            )
+                        }
+                    else:
+                        yield message
+            except Exception as e:
+                print("Translator Error: ", e, "")
 
 
 if __name__ == "__main__":

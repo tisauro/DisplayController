@@ -1,6 +1,6 @@
 messages_template = [
-    {"background_color": [100, 0, 0]},  # change display background color
     {"text": ["hello world"]},  # raw text no translation applies
+    {"background_colour": [100, 0, 0]},  # change display background color
     {"code_language": "test_code_with_no_parameters"},  # simple language code
     {
         "code_language": "test_code_with_parameters"

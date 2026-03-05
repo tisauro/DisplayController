@@ -124,15 +124,35 @@ async def test_push_direction_scroll_display_2_lines(button, held):
 
 
 @pytest.mark.parametrize(
-    "lines,expected_calls",
+    "button,lines,expected_calls",
     [
-        (["line_1", "line_2", "line_3"], 1),  # 3 lines - scroll once
-        (["l1", "l2", "l3", "l4", "l5"], 2),  # 5 lines - scroll twice
-        (["l1", "l2", "l3", "l4", "l5", "l6", "l7"], 3),  # 7 lines - scroll 3 times
+        pytest.param(
+            "button_01", ["l1", "l2"], 0, id="2_lines_no_scroll"
+        ),  # 2 lines - no scroll
+        pytest.param(
+            "button_01", ["l1", "l2", "l3"], 1, id="3_lines_1_scroll"
+        ),  # 3 lines - scroll once
+        pytest.param(
+            "button_01", ["l1", "l2", "l3", "l4"], 1, id="4_lines_1_scroll"
+        ),  # 4 lines - scroll twice
+        pytest.param(
+            "button_01", ["l1", "l2", "l3", "l4", "l5"], 2, id="5_lines_2_scrolls"
+        ),  # 5 lines - scroll twice
+        pytest.param(
+            "button_01", ["l1", "l2", "l3", "l4", "l5", "l6"], 2, id="6_lines_2_scrolls"
+        ),
+        # 6 lines - scroll twice
+        pytest.param(
+            "button_01",
+            ["l1", "l2", "l3", "l4", "l5", "l6", "l7"],
+            3,
+            id="7_lines_3_scrolls",
+        ),
+        # 7 lines - scroll 3 times
     ],
 )
 @pytest.mark.asyncio
-async def test_push_direction_scroll_display_odd_lines(lines, expected_calls):
+async def test_push_direction_scroll_forward(button, lines, expected_calls):
     async with DisplayController() as controller:
         controller._display_off = False
         controller._lines = lines
@@ -140,14 +160,67 @@ async def test_push_direction_scroll_display_odd_lines(lines, expected_calls):
         with patch.object(controller._display_queue, "put_nowait") as mock_put:
             # Scroll until we can't scroll anymore
             for i in range(expected_calls):
-                ret = controller.push_direction(button="button_01", held=False)
+                ret = controller.push_direction(button=button, held=False)
                 assert ret is None
 
             # Next scroll should return button message (can't scroll further)
-            ret = controller.push_direction(button="button_01", held=False)
-            assert ret == {"button": "button_01", "held": False}
+            ret = controller.push_direction(button=button, held=False)
+            assert ret == {"button": button, "held": False}
 
             # Verify final call showed last two lines
             final_msg = {"text": (lines[-2], lines[-1])}
-            assert mock_put.call_args[0][0] == final_msg
             assert mock_put.call_count == expected_calls
+            if expected_calls > 0:
+                assert mock_put.call_args[0][0] == final_msg
+
+
+@pytest.mark.parametrize(
+    "button,lines,expected_calls",
+    [
+        pytest.param(
+            "button_02", ["l1", "l2"], 0, id="2_lines_no_scroll"
+        ),  # 2 lines - no scroll
+        pytest.param(
+            "button_02", ["l1", "l2", "l3"], 1, id="3_lines_1_scroll"
+        ),  # 3 lines - scroll once
+        pytest.param(
+            "button_02", ["l1", "l2", "l3", "l4"], 1, id="4_lines_1_scroll"
+        ),  # 4 lines - scroll twice
+        pytest.param(
+            "button_02", ["l1", "l2", "l3", "l4", "l5"], 2, id="5_lines_2_scrolls"
+        ),  # 5 lines - scroll twice
+        pytest.param(
+            "button_02", ["l1", "l2", "l3", "l4", "l5", "l6"], 2, id="6_lines_2_scrolls"
+        ),
+        # 6 lines - scroll twice
+        pytest.param(
+            "button_02",
+            ["l1", "l2", "l3", "l4", "l5", "l6", "l7"],
+            3,
+            id="7_lines_3_scrolls",
+        ),
+        # 7 lines - scroll 3 times
+    ],
+)
+@pytest.mark.asyncio
+async def test_push_direction_scroll_backwards(button, lines, expected_calls):
+    async with DisplayController() as controller:
+        controller._display_off = False
+        controller._lines = lines
+        controller._cursor_position = len(lines) - 2
+
+        with patch.object(controller._display_queue, "put_nowait") as mock_put:
+            # Scroll until we can't scroll anymore
+            for i in range(expected_calls):
+                ret = controller.push_direction(button=button, held=False)
+                assert ret is None
+
+            # Next scroll should return button message (can't scroll further)
+            ret = controller.push_direction(button=button, held=False)
+            assert ret == {"button": button, "held": False}
+
+            # Verify final call showed last two lines
+            final_msg = {"text": (lines[-2], lines[-1])}
+            assert mock_put.call_count == expected_calls
+            if expected_calls > 0:
+                assert mock_put.call_args[0][0] == final_msg

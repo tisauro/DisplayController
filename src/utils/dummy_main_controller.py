@@ -7,6 +7,8 @@ class DummyMainController:
         self._messages = messages
         self._count = len(self._messages)
         self._current_index = 0
+        self._colours = ["white", "red", "green", "blue"]
+        self._current_colour = 0
         self._message_queue = asyncio.Queue()
 
     #     self._task_send_message = None
@@ -25,20 +27,40 @@ class DummyMainController:
             message = await self._message_queue.get()
             yield message
 
-    async def run(self, buttons_events: AsyncGenerator):
+    async def listen_direction(self, buttons_events: AsyncGenerator):
         async for event in buttons_events:
             if event.type == "button_01":
                 print(f"Button 01 clicked: {event.button_id}")
                 self._current_index += 1
                 if self._current_index >= self._count:
                     self._current_index = 0
-                await self._message_queue.put(self._messages[self._current_index])
+                msg = self._messages[self._current_index]
+                print(f"Controller Sending message: {msg}")
+                await self._message_queue.put(msg)
             elif event.type == "button_02":
                 print(f"Button 02: {event.button_id}")
                 self._current_index -= 1
                 if self._current_index < 0:
                     self._current_index = self._count - 1
-                await self._message_queue.put(self._messages[self._current_index])
+                msg = self._messages[self._current_index]
+                print(f"Controller Sending message: {msg}")
+                await self._message_queue.put(msg)
+            elif event.type == "button_01_held":
+                print(f"Button 01 held: {event.button_id}")
+                self._current_colour += 1
+                if self._current_colour >= len(self._colours):
+                    self._current_colour = 0
+                await self._message_queue.put(
+                    {"background_colour": self._colours[self._current_colour]}
+                )
+            elif event.type == "button_02_held":
+                print(f"Button 02 held: {event.button_id}")
+                self._current_colour -= 1
+                if self._current_colour < 0:
+                    self._current_colour = len(self._colours) - 1
+                await self._message_queue.put(
+                    {"background_colour": self._colours[self._current_colour]}
+                )
             elif event.type == "double_button":
                 print("Double button clicked")
                 self._current_index = 0

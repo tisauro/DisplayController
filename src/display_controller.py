@@ -1,9 +1,16 @@
 import asyncio
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Literal, AsyncGenerator, Any
 
 log = logging.getLogger(__name__)
+
+
+@dataclass
+class ButtonEvent:
+    type: str
+    button_id: int = None
 
 
 class DisplayController:
@@ -36,6 +43,7 @@ class DisplayController:
         self._last_background_colour = None
         self._task_display_timeout: asyncio.Task | None = None
         self._display_queue: asyncio.Queue | None = None
+        self._direction_queue: asyncio.Queue | None = None
 
     async def __aenter__(self):
         self.init_display_controller()
@@ -46,6 +54,7 @@ class DisplayController:
 
     def init_display_controller(self):
         self._display_queue = asyncio.Queue()
+        self._direction_queue = asyncio.Queue()
         self._task_display_timeout = asyncio.create_task(self._switch_display())
         self._show_text(self._last_payload, force_update=True)
 
@@ -54,6 +63,12 @@ class DisplayController:
             message = await self._display_queue.get()
             await asyncio.sleep(0.1)
             yield message
+
+    async def send_direction_to_controller(self) -> AsyncGenerator:
+        while True:
+            direction = await self._direction_queue.get()
+            await asyncio.sleep(0.1)
+            yield direction
 
     async def _switch_display(self):
         while True:
@@ -127,7 +142,7 @@ class DisplayController:
 
     def _process_event(self, message: dict[str, Any]):
         try:
-            if "background_color" in message:
+            if "background_colour" in message:
                 self._set_background_colour(message)
             elif "settings" in message:
                 self._set_settings(message)
@@ -138,10 +153,10 @@ class DisplayController:
         except Exception as e:
             log.error(f"Error processing event: {e}")
 
-    async def run(self, messages: AsyncGenerator, pi_buttons: AsyncGenerator):
-        await asyncio.gather(
-            self.listen_messages(messages), self.listen_direction(pi_buttons)
-        )
+    # async def run(self, messages: AsyncGenerator, pi_buttons: AsyncGenerator):
+    #     await asyncio.gather(
+    #         self.listen_messages(messages), self.listen_direction(pi_buttons)
+    #     )
 
     async def listen_messages(self, messages: AsyncGenerator):
         try:
@@ -155,7 +170,14 @@ class DisplayController:
             async for direction in buttons:
                 msg = self.push_direction(direction)
                 if msg:
-                    yield msg
+                    print(f"Sending message: {msg}")
+                    event = msg.get("button", "unknown")
+                    _id = event.split("_")[1] if "_" in event else None
+                    if msg.get("held"):
+                        event += "_held"
+                    self._direction_queue.put_nowait(
+                        ButtonEvent(type=event, button_id=_id)
+                    )
         except Exception as e:
             log.info(f"Error processing event: {e}")
 
