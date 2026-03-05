@@ -1,5 +1,5 @@
 _english_str = {
-    "test_code_with_no_parameters": ["Test Line 1", "Test Line2"],
+    "test_code_with_no_parameters": ["Test Line 1", "Test Line 2"],
     "test_code_with_parameters": ["Parameter 1 is", "$param_1"],
     "long_text_with_parameters": [
         "Line 1",

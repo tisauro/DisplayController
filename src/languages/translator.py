@@ -4,20 +4,34 @@ from typing import AsyncGenerator
 
 
 class Translator:
-    def __init__(self):
+    def __init__(self, files_path: Path | None = None):
         self._languages = {}
         self.verify_templates()
         self._current_language: str = "english"
-        self._language_path: Path = Path(__file__)
+        if files_path is None:
+            self._language_path: Path = Path(__file__)
+        else:
+            self._language_path = files_path
+
+    async def __aenter__(self):
+        self.load_languages(self._language_path)
+        self.verify_templates()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
 
     def reload(self):
         self.load_languages(self._language_path)
 
-    def load_languages(self, path: Path) -> None:
+    def load_languages(self, files_path: Path | None = None) -> None:
         self._languages = {}
-        self._language_path = path
-        for file_path in path.glob("**/language_*.py"):
-            language_name = file_path.stem.split("_")[1]
+        if files_path:
+            self._language_path = files_path
+        else:
+            files_path = self._language_path
+        for file_path in files_path.glob("**/language_*.py"):
+            language_name = file_path.stem.split("_")[-1:][0]
             attr = f"_{language_name}_str"
             file_vars = {}
             with open(file_path, "r", encoding="utf-8") as f:
@@ -73,22 +87,26 @@ class Translator:
         return final_text
 
     async def translate(self, messages: AsyncGenerator):
-        async for message in messages:
-            if "code_language" in message:
-                yield {
-                    "text": self.get_text(
-                        message["code_language"], message.get("parameters", "")
-                    )
-                }
-            else:
-                yield message
+        while True:
+            try:
+                async for message in messages:
+                    if "code_language" in message:
+                        yield {
+                            "text": self.get_text(
+                                message["code_language"], message.get("parameters", "")
+                            )
+                        }
+                    else:
+                        yield message
+            except Exception as e:
+                print("Translator Error: ", e, "")
 
 
 if __name__ == "__main__":
     from src.utils.messages import dispatch_messages
 
     languages = Translator()
-    languages.load_languages(path=Path("../.."))
+    languages.load_languages(files_path=Path("../.."))
     languages.verify_templates()
     languages.set_current_language("english")
 

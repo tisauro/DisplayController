@@ -218,8 +218,9 @@ class LCD1602Display(BaseDisplay):
 
     async def receive_messages(self, messages: AsyncGenerator):
         async for message in messages:
+            print(f"LCD Display Received message: {message}")
             if "text" in message:
-                line1, line2 = message["text"]
+                line1, line2, *_ = (*message.get("text", ()), "", "")
                 self.print_lines(line1, line2)
             elif "settings" in message:
                 if "clear" in message["settings"]:

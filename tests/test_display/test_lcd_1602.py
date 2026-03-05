@@ -39,11 +39,11 @@ async def test_receive_settiings(smbus_mock):
     async with LCD1602Display() as display:
         display.display_clear = Mock()
         display.display_on = Mock()
-        display.display_off = Mock()
+        display._display_off = Mock()
         await display.receive_messages(mock_settings())
         display.display_clear.assert_called_once()
         display.display_on.assert_called_once()
-        display.display_off.assert_called_once()
+        display._display_off.assert_called_once()
 
 
 @patch("display.lcd_1602_display.SMBus")
