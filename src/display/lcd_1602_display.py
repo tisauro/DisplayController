@@ -62,6 +62,26 @@ log = logging.getLogger(__name__)
 
 
 class LCD1602Display(BaseDisplay):
+    """
+    Represents an LCD1602Display with RGB backlight control and message handling through an I2C interface.
+
+    This class is designed to interact with a 16x2 character LCD display using the I2C communication
+    protocol. It provides methods to control the display, such as printing text, controlling the backlight
+    color, and managing display states (on/off). The class is also capable of handling messages asynchronously
+    to update the display content or settings dynamically.
+
+    :ivar i2c_address: The I2C address of the LCD display.
+    :type i2c_address: int
+    :ivar _row: Number of rows available on the LCD display.
+    :type _row: int
+    :ivar _col: Number of columns available on the LCD display.
+    :type _col: int
+    :ivar _show_function: Defines the display configuration used during initialization.
+    :type _show_function: int
+    :ivar _is_rgb: Indicates whether the display is equipped with an RGB backlight.
+    :type _is_rgb: bool
+    """
+
     def __init__(self, i2c_address=0x27, bus=1):
         self._num_lines = None
         self._smbus = None

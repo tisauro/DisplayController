@@ -9,6 +9,19 @@ log = logging.getLogger(__name__)
 
 
 class Translator:
+    """
+    Handles language translation using dynamic templates. Provides functionality to load, reload,
+    and translate text and messages in multiple languages. Uses JSON files to store language data.
+
+    This class is designed to support asynchronous context management and dynamic language
+    template substitution. It ensures that language templates are valid before usage.
+
+    :ivar _current_language: The currently set language for translation operations.
+    :type _current_language: str
+    :ivar _language_path: The file path where language JSON files are located.
+    :type _language_path: Path
+    """
+
     def __init__(self, files_path: Path | None = None):
         self._languages = {}
         self.verify_templates()
@@ -72,7 +85,6 @@ class Translator:
         }
 
     def get_text(self, code_language: str, parameters: list = ()) -> list:
-        self.reload()
         raw_text = self._languages[self.get_current_language()].get(
             code_language, code_language
         )
@@ -113,20 +125,3 @@ class Translator:
             # Fatal error - log and re-raise
             log.exception(f"Fatal translator error: {e}")
             raise
-
-
-if __name__ == "__main__":
-    from src.utils.messages import dispatch_messages
-
-    languages = Translator()
-    languages.load_languages(files_path=Path("../.."))
-    languages.verify_templates()
-    languages.set_current_language("english")
-
-    async def main():
-        async for message in languages.translate(dispatch_messages()):
-            print(message)
-
-    from asyncio import run
-
-    run(main())
