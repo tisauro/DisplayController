@@ -1,9 +1,9 @@
+import asyncio
 import json
+import logging
 from pathlib import Path
 from string import Template
 from typing import AsyncGenerator
-import asyncio
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ class Translator:
             if "=" in par
         }
 
-    def get_text(self, code_language: str, parameters: list = ()) -> list:
+    def get_text(self, code_language: str, parameters: list = []) -> list:
         raw_text = self._languages[self.get_current_language()].get(
             code_language, code_language
         )

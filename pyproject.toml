@@ -20,15 +20,17 @@ classifiers = [
     "Topic :: System :: Hardware",
 ]
 dependencies = [
-    "smbus2==0.6.0"
+    "smbus2==0.6.0",
+    "gpiozero>=2.0.1",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21.0",
     "pre-commit",
-    "ruff"
+    "pyright>=1.1.408",
+    "ruff>=0.15.10",
 ]
 
 [project.urls]
@@ -45,3 +47,8 @@ where = ["src"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 pythonpath = [".", "src"]
+
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
