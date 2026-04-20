@@ -22,6 +22,7 @@ classifiers = [
 dependencies = [
     "smbus2==0.6.0",
     "gpiozero>=2.0.1",
+    "pyright>=1.1.408",
 ]
 
 [dependency-groups]
