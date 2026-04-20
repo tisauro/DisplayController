@@ -2,7 +2,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Literal, AsyncGenerator, Any
+from typing import Literal, AsyncGenerator, Any, Optional, AsyncIterator
 
 log = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ IDLE_TIME = 3
 @dataclass
 class ButtonEvent:
     type: str
-    button_id: int = None
+    button_id: Optional[int] = None
 
 
 class DisplayController:
@@ -165,19 +165,41 @@ class DisplayController:
         except Exception as e:
             log.info(f"Error processing event: {e}")
 
-    async def listen_direction(self, buttons: AsyncGenerator):
+    async def listen_direction(self, buttons: AsyncIterator[str]):
         try:
             async for direction in buttons:
-                msg = self.push_direction(direction)
-                if msg != {}:
-                    log.debug(f"Sending message: {msg}")
-                    event = msg.get("button", "unknown")
-                    _id = event.split("_")[1] if "_" in event else None
-                    if msg.get("held"):
-                        event += "_held"
-                    self._direction_queue.put_nowait(
-                        ButtonEvent(type=event, button_id=_id)
-                    )
+                # Ensure direction matches the Literal type expected by push_direction
+                if direction in ["button_01", "button_02", "double_button"]:
+                    msg = self.push_direction(direction)  # type: ignore
+                    if msg != {}:
+                        log.debug(f"Sending message: {msg}")
+                        event = msg.get("button", "unknown")
+                        _id_str = event.split("_")[1] if "_" in event else None
+                        _id = int(_id_str) if _id_str and _id_str.isdigit() else None
+                        if msg.get("held"):
+                            event += "_held"
+                        self._direction_queue.put_nowait(
+                            ButtonEvent(type=event, button_id=_id)
+                        )
+                elif direction in ["button_01_held", "button_02_held"]:
+                    # Handle held events directly if they come from the iterator
+                    btn_name = direction.replace("_held", "")
+                    if btn_name in ["button_01", "button_02"]:
+                        msg = self.push_direction(btn_name, held=True)  # type: ignore
+                        if msg != {}:
+                            log.debug(f"Sending message (held): {msg}")
+                            event = msg.get("button", "unknown")
+                            _id_str = event.split("_")[1] if "_" in event else None
+                            _id = (
+                                int(_id_str) if _id_str and _id_str.isdigit() else None
+                            )
+                            if msg.get("held"):
+                                event += "_held"
+                            self._direction_queue.put_nowait(
+                                ButtonEvent(type=event, button_id=_id)
+                            )
+                else:
+                    log.warning(f"Unexpected direction value: {direction}")
         except Exception as e:
             log.info(f"Error processing event: {e}")
 
