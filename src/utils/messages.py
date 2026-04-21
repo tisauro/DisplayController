@@ -29,14 +29,3 @@ messages_template = [
 async def dispatch_messages():
     for message in messages_template:
         yield message
-
-
-if __name__ == "__main__":
-
-    async def main():
-        async for message in dispatch_messages():
-            print(message)
-
-    from asyncio import run
-
-    run(main())

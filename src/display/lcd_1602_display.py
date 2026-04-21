@@ -4,6 +4,12 @@ from typing import AsyncGenerator
 
 from smbus2 import SMBus
 
+from languages.message_types import (
+    AllMessageTypes,
+    TextMessage,
+    SettingsMessage,
+    BackgroundColourMessage,
+)
 from src.display.base_display import BaseDisplay
 
 # Device I2C Arress
@@ -62,6 +68,26 @@ log = logging.getLogger(__name__)
 
 
 class LCD1602Display(BaseDisplay):
+    """
+    Represents an LCD1602Display with RGB backlight control and message handling through an I2C interface.
+
+    This class is designed to interact with a 16x2 character LCD display using the I2C communication
+    protocol. It provides methods to control the display, such as printing text, controlling the backlight
+    color, and managing display states (on/off). The class is also capable of handling messages asynchronously
+    to update the display content or settings dynamically.
+
+    :ivar i2c_address: The I2C address of the LCD display.
+    :type i2c_address: int
+    :ivar _row: Number of rows available on the LCD display.
+    :type _row: int
+    :ivar _col: Number of columns available on the LCD display.
+    :type _col: int
+    :ivar _show_function: Defines the display configuration used during initialization.
+    :type _show_function: int
+    :ivar _is_rgb: Indicates whether the display is equipped with an RGB backlight.
+    :type _is_rgb: bool
+    """
+
     def __init__(self, i2c_address=0x27, bus=1):
         self._num_lines = None
         self._smbus = None
@@ -71,8 +97,6 @@ class LCD1602Display(BaseDisplay):
         self._col = 16
         self._show_function = LCD_4BITMODE | LCD_1LINE | LCD_5x8DOTS
         self._is_rgb = True
-
-        # self.begin(self._row, self._col)
 
     def __setitem__(self, line, string):
         if not 0 <= line <= 1:
@@ -130,7 +154,7 @@ class LCD1602Display(BaseDisplay):
         self._command(LCD_DISPLAYCONTROL | self._showcontrol)
         self.set_color_white()
 
-    def init_display(self, cols, lines):
+    def _init_display(self, cols, lines):
         try:
             self._smbus = SMBus(1)
         except Exception as e:
@@ -209,44 +233,30 @@ class LCD1602Display(BaseDisplay):
         return self._is_rgb
 
     async def __aenter__(self):
-        self.init_display(self._row, self._col)
+        self._init_display(self._row, self._col)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self._smbus:
             self._smbus.close()
 
-    async def receive_messages(self, messages: AsyncGenerator):
+    async def receive_messages(self, messages: AsyncGenerator[AllMessageTypes, None]):
         async for message in messages:
-            print(f"LCD Display Received message: {message}")
-            if "text" in message:
-                line1, line2, *_ = (*message.get("text", ()), "", "")
+            log.debug(f"LCD Display Received message: {message}")
+            if isinstance(message, TextMessage):
+                line1, line2, *_ = (*message.text, "", "")
                 self.print_lines(line1, line2)
-            elif "settings" in message:
-                if "clear" in message["settings"]:
+            elif isinstance(message, SettingsMessage):
+                if "clear" in message.settings:
                     self.display_clear()
-                elif "on" in message["settings"]:
+                elif "on" in message.settings:
                     self.display_on()
-                elif "off" in message["settings"]:
+                elif "off" in message.settings:
                     self.display_off()
                 else:
-                    log.debug(f"No settings found for {message['settings']}")
-            elif "background_colour" in message:
-                r, g, b = message["background_colour"]
+                    log.debug(f"No settings found for {message.settings}")
+            elif isinstance(message, BackgroundColourMessage):
+                r, g, b = message.colour
                 self.set_rgb(r, g, b)
             else:
                 log.debug(f"No message found for {message}")
-
-
-if __name__ == "__main__":
-    # from modules.utils.display import display_test
-
-    lcd = LCD1602Display()
-    lcd.init_display()
-    lcd.display_clear()
-    lcd.print_lines('tes"\\"t_1', "test_2")
-    lcd.display_clear()
-    lcd.print_line("again", 1)
-    # for line1, line2 in display_test():
-    #     lcd.print_lines(line1, line2)
-    pass

@@ -1,4 +1,4 @@
-_english_str = {
+{
     "test_code_with_no_parameters": ["Test Line 1", "Test Line 2"],
     "test_code_with_parameters": ["Parameter 1 is", "$param_1"],
     "long_text_with_parameters": [
@@ -10,7 +10,7 @@ _english_str = {
         "$param_2",
         "Line 7",
         "$param_3",
-        "Line 8",
+        "Line 8"
     ],
     "long_text_even_no_lines": [
         "Line 1",
@@ -22,7 +22,7 @@ _english_str = {
         "Line 7",
         "Line 8",
         "Line 9",
-        "Line 10",
+        "Line 10"
     ],
     "long_text_odd_no_lines": [
         "Line 1",
@@ -33,6 +33,6 @@ _english_str = {
         "Line 6",
         "Line 7",
         "Line 8",
-        "Line 9",
-    ],
+        "Line 9"
+    ]
 }

@@ -1,21 +1,30 @@
-class BaseDisplay:
-    def set_rgb(self, r: int, g: int, b: int):
-        raise NotImplementedError()
+from abc import ABC, abstractmethod
+
+
+class BaseDisplay(ABC):
+    @abstractmethod
+    def set_rgb(self, r: int, g: int, b: int) -> None:
+        ...
 
     def set_color_white(self):
         self.set_rgb(255, 255, 255)
 
-    def display_clear(self):
-        raise NotImplementedError()
+    @abstractmethod
+    def display_clear(self) -> None:
+        ...
 
-    def display_on(self):
-        raise NotImplementedError()
+    @abstractmethod
+    def display_on(self) -> None:
+        ...
 
-    def display_off(self):
-        raise NotImplementedError()
+    @abstractmethod
+    def display_off(self) -> None:
+        ...
 
-    def print_lines(self, line_1, line_2):
-        raise NotImplementedError()
+    @abstractmethod
+    def print_lines(self, line_1: str, line_2: str) -> None:
+        ...
 
-    def has_timeout(self):
-        raise NotImplementedError()
+    @abstractmethod
+    def has_timeout(self) -> bool:
+        ...
