@@ -85,7 +85,7 @@ class DummyMainController:
                     self._current_index = 0
                 msg = self._messages[self._current_index]
                 logger.debug(f"Controller Sending message: {msg}")
-                cmd = MessageFactory().create_message_class(msg)
+                cmd = MessageFactory.create_message_class(msg)
                 await self._message_queue.put(cmd)
             elif event.type == "button_02":
                 logger.debug(f"Button 02: {event.button_id}")
@@ -94,7 +94,7 @@ class DummyMainController:
                     self._current_index = self._count - 1
                 msg = self._messages[self._current_index]
                 logger.debug(f"Controller Sending message: {msg}")
-                cmd = MessageFactory().create_message_class(msg)
+                cmd = MessageFactory.create_message_class(msg)
                 await self._message_queue.put(cmd)
             elif event.type == "button_01_held":
                 logger.debug(f"Button 01 held: {event.button_id}")
@@ -102,7 +102,7 @@ class DummyMainController:
                 if self._current_colour >= len(self._colours):
                     self._current_colour = 0
                 msg = {"background_colour": self._colours[self._current_colour]}
-                cmd = MessageFactory().create_message_class(msg)
+                cmd = MessageFactory.create_message_class(msg)
                 await self._message_queue.put(cmd)
             elif event.type == "button_02_held":
                 logger.debug(f"Button 02 held: {event.button_id}")
@@ -110,13 +110,13 @@ class DummyMainController:
                 if self._current_colour < 0:
                     self._current_colour = len(self._colours) - 1
                 msg = {"background_colour": self._colours[self._current_colour]}
-                cmd = MessageFactory().create_message_class(msg)
+                cmd = MessageFactory.create_message_class(msg)
                 await self._message_queue.put(cmd)
             elif event.type == "double_button":
                 logger.debug("Double button clicked")
                 self._current_index = 0
                 msg = self._messages[self._current_index]
-                cmd = MessageFactory().create_message_class(msg)
+                cmd = MessageFactory.create_message_class(msg)
                 await self._message_queue.put(cmd)
             else:
                 logger.warning(f"Unknown event type: {event.type}")

@@ -47,7 +47,7 @@ class DisplayController:
         self._last_payload = {"text": ["Display", "Initialized"]}
         self._last_background_colour = None
         self._task_display_timeout: asyncio.Task[None] | None = None
-        self._display_queue = asyncio.Queue[dict[str, Any]]()
+        self._display_queue = asyncio.Queue[AllMessageTypes]()
         self._direction_queue = asyncio.Queue[ButtonEvent]()
 
     async def __aenter__(self):
@@ -85,13 +85,18 @@ class DisplayController:
                     and not self._disable_screen_timeout
             ):
                 log.debug("Display Off")
-                message = SettingsMessage(settings= "display_off")
+                message = SettingsMessage(settings="display_off")
                 self._process_event(message)
                 self._display_off = True
             await asyncio.sleep(IDLE_TIME)
 
     def _set_settings(self, message: SettingsMessage):
-        self._disable_screen_timeout = message.settings == "display_off"
+        if message.settings == "display_off":
+            self._disable_screen_timeout = True
+        elif message.settings == "display_on":
+            self._disable_screen_timeout = False
+        else:
+            log.warning(f"Unknown settings value: {message.settings}")
 
         log.debug(f"Setting disable_screen_timeout to {self._disable_screen_timeout}")
 
@@ -112,20 +117,20 @@ class DisplayController:
         if self._display_off or self._last_background_colour == bg_colour:
             return
 
-        msg = {"background_colour": tuple()}
+        msg: BackgroundColourMessage
         if isinstance(bg_colour, (list, tuple)):
             log.debug(f"Setting background colour to {message.colour}")
-            msg = {"background_colour": tuple(bg_colour)}
+            msg = BackgroundColourMessage(colour=tuple(bg_colour))  # type: ignore
         elif isinstance(bg_colour, str):
             log.debug("Setting background colour white")
             if bg_colour == "white":
-                msg = {"background_colour": (255, 255, 255)}
+                msg = BackgroundColourMessage(colour=(255, 255, 255))
             elif bg_colour == "red":
-                msg = {"background_colour": (255, 0, 0)}
+                msg = BackgroundColourMessage(colour=(255, 0, 0))
             elif bg_colour == "green":
-                msg = {"background_colour": (0, 255, 0)}
+                msg = BackgroundColourMessage(colour=(0, 255, 0))
             elif bg_colour == "blue":
-                msg = {"background_colour": (0, 0, 255)}
+                msg = BackgroundColourMessage(colour=(0, 0, 255))
             else:
                 log.error(f"Invalid background colour: {bg_colour}")
                 return
@@ -141,7 +146,7 @@ class DisplayController:
                 send_lines = tuple(
                     text_lines[self._cursor_position: self._cursor_position + 2]
                 )
-                self._display_queue.put_nowait({"text": send_lines})
+                self._display_queue.put_nowait(TextMessage(text=send_lines))
                 self._lines = text_lines
 
     def _process_event(self, message: AllMessageTypes):
@@ -151,7 +156,7 @@ class DisplayController:
             elif isinstance(message, SettingsMessage):
                 self._set_settings(message)
             elif isinstance(message, TextMessage):
-                self._show_text(message.text)
+                self._show_text({"text": list(message.text)})
             else:
                 log.error(f"Unknown message: {message}")
         except Exception as e:
@@ -172,14 +177,7 @@ class DisplayController:
                     msg = self.push_direction(direction)  # type: ignore
                     if msg != {}:
                         log.debug(f"Sending message: {msg}")
-                        event = str(msg.get("button", "unknown"))
-                        _id_str = event.split("_")[1] if "_" in event else None
-                        _id = int(_id_str) if _id_str and _id_str.isdigit() else None
-                        if msg.get("held"):
-                            event += "_held"
-                        self._direction_queue.put_nowait(
-                            ButtonEvent(type=event, button_id=_id)
-                        )
+                        self._direction_queue.put_nowait(self._create_button_event(msg))
                 elif direction in ["button_01_held", "button_02_held"]:
                     # Handle held events directly if they come from the iterator
                     btn_name = direction.replace("_held", "")
@@ -187,29 +185,32 @@ class DisplayController:
                         msg = self.push_direction(btn_name, held=True)  # type: ignore
                         if msg != {}:
                             log.debug(f"Sending message (held): {msg}")
-                            event = str(msg.get("button", "unknown"))
-                            _id_str = event.split("_")[1] if "_" in event else None
-                            _id = (
-                                int(_id_str) if _id_str and _id_str.isdigit() else None
-                            )
-                            if msg.get("held"):
-                                event += "_held"
-                            self._direction_queue.put_nowait(
-                                ButtonEvent(type=event, button_id=_id)
-                            )
+                            self._direction_queue.put_nowait(self._create_button_event(msg))
                 else:
                     log.warning(f"Unexpected direction value: {direction}")
         except Exception as e:
             log.info(f"Error processing event: {e}")
 
+    @staticmethod
+    def _create_button_event(msg: dict[str, Any]) -> ButtonEvent:
+        """
+        Creates a ButtonEvent from the message dictionary returned by push_direction.
+        """
+        event = str(msg.get("button", "unknown"))
+        _id_str = event.split("_")[1] if "_" in event else None
+        _id = int(_id_str) if _id_str and _id_str.isdigit() else None
+        if msg.get("held"):
+            event += "_held"
+        return ButtonEvent(type=event, button_id=_id)
+
     def _update_display_text(self) -> None:
         """Updates the display with current lines at cursor position."""
-        msg = {
-            "text": (
+        msg = TextMessage(
+            text=(
                 self._lines[self._cursor_position],
                 self._lines[self._cursor_position + 1],
             )
-        }
+        )
         self._display_queue.put_nowait(msg)
 
     def _handle_forward_direction(self) -> bool:
@@ -251,9 +252,11 @@ class DisplayController:
 
         # Wake up display if off
         if self._display_off:
-            msg = {"settings": "display_on"}
+            msg = SettingsMessage(settings="display_on")
             self._display_queue.put_nowait(msg)
             self._display_off = False
+            # Ensure internal state is updated as well
+            self._set_settings(msg)
             return {}
 
         # Scroll display on button press (if not held)

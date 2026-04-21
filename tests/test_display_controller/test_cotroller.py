@@ -4,7 +4,7 @@ import pytest
 from display_controller import DisplayController
 from unittest.mock import patch, MagicMock
 
-from languages.message_types import BackgroundColourMessage, SettingsMessage
+from languages.message_types import BackgroundColourMessage, SettingsMessage, TextMessage
 from utils.dummy_main_controller import MessageFactory
 
 
@@ -71,7 +71,7 @@ async def test_background_colour(background_colour, expected):
             msg = MessageFactory().create_message_class({"background_colour": background_colour})
             if isinstance(msg, BackgroundColourMessage):
                 controller._set_background_colour(msg)
-                mock_put.assert_called_once_with({"background_colour": expected})
+                mock_put.assert_called_once_with(BackgroundColourMessage(colour=expected))
 
 
 @pytest.mark.asyncio
@@ -81,7 +81,7 @@ async def test_push_direction_wake_screen():
         with patch.object(controller._display_queue, "put_nowait") as mock_put:
             ret = controller.push_direction(button="button_01", held=False)
             assert ret == {}
-            msg = {"settings": "display_on"}
+            msg = SettingsMessage(settings="display_on")
             mock_put.assert_called_once_with(msg)
 
 
@@ -170,7 +170,7 @@ async def test_push_direction_scroll_forward(button, lines, expected_calls):
             assert ret == {"button": button, "held": False}
 
             # Verify final call showed the last two lines
-            final_msg = {"text": (lines[-2], lines[-1])}
+            final_msg = TextMessage(text=(lines[-2], lines[-1]))
             assert mock_put.call_count == expected_calls
             if expected_calls > 0:
                 assert mock_put.call_args[0][0] == final_msg
@@ -222,7 +222,31 @@ async def test_push_direction_scroll_backwards(button, lines, expected_calls):
             assert ret == {"button": button, "held": False}
 
             # Verify final call showed the first two lines
-            final_msg = {"text": (lines[0], lines[1])}
+            final_msg = TextMessage(text=(lines[0], lines[1]))
             assert mock_put.call_count == expected_calls
             if expected_calls > 0:
                 assert mock_put.call_args[0][0] == final_msg
+
+
+@pytest.mark.asyncio
+async def test_set_settings_explicit():
+    async with DisplayController() as controller:
+        # Test display_off
+        msg_off = SettingsMessage(settings="display_off")
+        controller._set_settings(msg_off)
+        assert controller._disable_screen_timeout is True
+
+        # Test display_on
+        msg_on = SettingsMessage(settings="display_on")
+        controller._set_settings(msg_on)
+        assert controller._disable_screen_timeout is False
+
+        # Test unknown setting - should remain unchanged (False)
+        msg_unknown = SettingsMessage(settings="unknown")
+        controller._set_settings(msg_unknown)
+        assert controller._disable_screen_timeout is False
+
+        # Test unknown setting when it was True
+        controller._disable_screen_timeout = True
+        controller._set_settings(msg_unknown)
+        assert controller._disable_screen_timeout is True
