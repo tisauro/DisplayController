@@ -4,6 +4,12 @@ from typing import AsyncGenerator
 
 from smbus2 import SMBus
 
+from languages.message_types import (
+    AllMessageTypes,
+    TextMessage,
+    SettingsMessage,
+    BackgroundColourMessage,
+)
 from src.display.base_display import BaseDisplay
 
 # Device I2C Arress
@@ -234,23 +240,23 @@ class LCD1602Display(BaseDisplay):
         if self._smbus:
             self._smbus.close()
 
-    async def receive_messages(self, messages: AsyncGenerator):
+    async def receive_messages(self, messages: AsyncGenerator[AllMessageTypes, None]):
         async for message in messages:
             log.debug(f"LCD Display Received message: {message}")
-            if "text" in message:
-                line1, line2, *_ = (*message.get("text", ()), "", "")
+            if isinstance(message, TextMessage):
+                line1, line2, *_ = (*message.text, "", "")
                 self.print_lines(line1, line2)
-            elif "settings" in message:
-                if "clear" in message["settings"]:
+            elif isinstance(message, SettingsMessage):
+                if "clear" in message.settings:
                     self.display_clear()
-                elif "on" in message["settings"]:
+                elif "on" in message.settings:
                     self.display_on()
-                elif "off" in message["settings"]:
+                elif "off" in message.settings:
                     self.display_off()
                 else:
-                    log.debug(f"No settings found for {message['settings']}")
-            elif "background_colour" in message:
-                r, g, b = message["background_colour"]
+                    log.debug(f"No settings found for {message.settings}")
+            elif isinstance(message, BackgroundColourMessage):
+                r, g, b = message.colour
                 self.set_rgb(r, g, b)
             else:
                 log.debug(f"No message found for {message}")
