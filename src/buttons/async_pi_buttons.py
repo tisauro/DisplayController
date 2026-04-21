@@ -74,7 +74,7 @@ class AsyncPiButtons:
             logger.debug("Button 01 pressed")
             self._loop.call_soon_threadsafe(self._queue.put_nowait, "button_01")
         self._button_states[btn] = False
-        if self._button_02 and not getattr(self._button_02, "is_pressed", False):
+        if not getattr(self._button_02, "is_pressed", False):
             self._double_button_triggered = False
 
     def _button_02_released(self, btn: Button) -> None:
@@ -84,7 +84,7 @@ class AsyncPiButtons:
             logger.debug("Button 02 pressed")
             self._loop.call_soon_threadsafe(self._queue.put_nowait, "button_02")
         self._button_states[btn] = False
-        if self._button_01 and not getattr(self._button_01, "is_pressed", False):
+        if not getattr(self._button_01, "is_pressed", False):
             self._double_button_triggered = False
 
     def _button_01_held(self, btn: Button) -> None:

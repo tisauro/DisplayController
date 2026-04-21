@@ -4,6 +4,9 @@ import pytest
 from display_controller import DisplayController
 from unittest.mock import patch, MagicMock
 
+from languages.message_types import BackgroundColourMessage, SettingsMessage
+from utils.dummy_main_controller import MessageFactory
+
 
 @pytest.mark.asyncio
 async def test_aenter_aexit():
@@ -39,10 +42,7 @@ async def test_display_timeout_task(
 ):
     # Mock datetime to return initial time, then time after a timeout period
     mock_now = MagicMock()
-    mock_now.timestamp.side_effect = [
-        1000.0,
-        1000.0 + (60 * 2) + 5,
-    ]  # 2 min timeout + 5 sec
+    mock_now.timestamp.side_effect = [1000.0] + [1000.0 + (60 * 2) + 5] * 10
     mock_datetime.now.return_value = mock_now
 
     async with DisplayController() as controller:
@@ -54,7 +54,7 @@ async def test_display_timeout_task(
             # Wait for the timeout task to run (it checks every 3 seconds)
             await asyncio.sleep(4)
             if should_call:
-                message = {"settings": "display_off"}
+                message = SettingsMessage(settings="display_off")
                 mock_process.assert_called_once_with(message)
             else:
                 mock_process.assert_not_called()
@@ -62,14 +62,16 @@ async def test_display_timeout_task(
 
 @pytest.mark.parametrize(
     "background_colour,expected",
-    [("white", (255, 255, 255)), ([200, 200, 200], (200, 200, 200))],
+    [("white", (255, 255, 255)), ((200, 200, 200), (200, 200, 200))],
 )
 @pytest.mark.asyncio
 async def test_background_colour(background_colour, expected):
     async with DisplayController() as controller:
         with patch.object(controller._display_queue, "put_nowait") as mock_put:
-            controller._set_background_colour({"background_colour": background_colour})
-            mock_put.assert_called_once_with({"background_colour": expected})
+            msg = MessageFactory().create_message_class({"background_colour": background_colour})
+            if isinstance(msg, BackgroundColourMessage):
+                controller._set_background_colour(msg)
+                mock_put.assert_called_once_with({"background_colour": expected})
 
 
 @pytest.mark.asyncio

@@ -38,7 +38,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "gpiozero" },
-    { name = "pyright" },
     { name = "smbus2" },
 ]
 
@@ -54,7 +53,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "gpiozero", specifier = ">=2.0.1" },
-    { name = "pyright", specifier = ">=1.1.408" },
     { name = "smbus2", specifier = "==0.6.0" },
 ]
 

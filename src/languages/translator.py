@@ -3,7 +3,9 @@ import json
 import logging
 from pathlib import Path
 from string import Template
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Tuple
+
+from languages.message_types import TextMessage, AllMessageTypes, CodeLanguageMessage
 
 log = logging.getLogger(__name__)
 
@@ -77,40 +79,39 @@ class Translator:
                         raise Exception(ln)
 
     @staticmethod
-    def _convert_parameters(parameters: list) -> dict[str, str]:
+    def _convert_parameters(parameters: Tuple[str, ...]) -> dict[str, str]:
+        # Todo: what happens when parameters is None empty tuple?
         return {
             par.split(sep="=")[0]: par.split(sep="=")[1]
             for par in parameters
             if "=" in par
         }
 
-    def get_text(self, code_language: str, parameters: list = []) -> list:
+    def get_text(self, code_message: CodeLanguageMessage) -> tuple[str, ...]:
         raw_text = self._languages[self.get_current_language()].get(
-            code_language, code_language
+            code_message.code_language, code_message.code_language
         )
         if isinstance(raw_text, str):
             raw_text = [raw_text]
 
         final_text = []
-        dict_par = self._convert_parameters(parameters)
+        dict_par = self._convert_parameters(code_message.parameters)
         for line in raw_text:
             string_template = Template(line)
             temp = string_template.safe_substitute(dict_par)
             # create multiple lines from a single parameter if it contains '\n'
             temp = temp.split(sep="\n")
             final_text.extend(temp)
-        return final_text
+        return tuple(final_text)
 
-    async def translate(self, messages: AsyncGenerator):
+    async def translate(self, messages: AsyncGenerator[AllMessageTypes, None]) -> AsyncGenerator[AllMessageTypes, None]:
         try:
             async for message in messages:
                 try:
-                    if "code_language" in message:
-                        yield {
-                            "text": self.get_text(
-                                message["code_language"], message.get("parameters", "")
-                            )
-                        }
+                    if isinstance(message, CodeLanguageMessage):
+                        yield TextMessage(
+                            text=self.get_text(message)
+                        )
                     else:
                         yield message
                 except Exception as e:
